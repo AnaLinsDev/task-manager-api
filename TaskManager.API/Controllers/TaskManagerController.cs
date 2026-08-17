@@ -1,8 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TaskManager.Application.Exceptions;
+using TaskManager.Application.UseCases.Task.Delete;
 using TaskManager.Application.UseCases.Task.GetAll;
+using TaskManager.Application.UseCases.Task.GetById;
 using TaskManager.Application.UseCases.Task.Register;
+using TaskManager.Application.UseCases.Task.Update;
 using TaskManager.Communication.Enums;
 using TaskManager.Communication.Requests;
 using TaskManager.Communication.Responses;
@@ -16,17 +19,15 @@ public class TaskManagerController : ControllerBase
     {
         new ResponseTask
         {
-            Id = Guid.NewGuid(),
             Name = "Estudar C#",
             Description = "Estudar classes, interfaces e LINQ",
             Priority = Priority.High,
-            dueDate = new DateTime(2026, 8, 18),
+            dueDate = new DateTime(2026, 8, 19),
             Status = Status.Pending
         },
 
         new ResponseTask
         {
-            Id = Guid.NewGuid(),
             Name = "Fazer exercícios de LeetCode",
             Description = "Resolver 2 problemas de algoritmos",
             Priority = Priority.Medium,
@@ -36,7 +37,6 @@ public class TaskManagerController : ControllerBase
 
         new ResponseTask
         {
-            Id = Guid.NewGuid(),
             Name = "Atualizar currículo",
             Description = "Adicionar projetos backend .NET",
             Priority = Priority.Low,
@@ -66,7 +66,7 @@ public class TaskManagerController : ControllerBase
         }
 
     }
-
+    
     [HttpGet]
     [EndpointSummary("Get All")]
     [ProducesResponseType(typeof(ResponseListAllTasks), StatusCodes.Status200OK)]
@@ -83,12 +83,15 @@ public class TaskManagerController : ControllerBase
     [EndpointSummary("Get by ID")]
     [ProducesResponseType(typeof(ResponseTask), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseErrors), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     public IActionResult GetById([FromRoute] Guid id)
     {
 
         try
         {
-            return Ok();
+            var response = new GetTaskByIdUseCase().Execute(tasksDB, id);
+
+            return Ok(response);
         }
         catch (ValidationException ex)
         {
@@ -96,6 +99,10 @@ public class TaskManagerController : ControllerBase
             {
                 Errors = ex.Errors
             });
+        }
+        catch (TaskNotFoundException ex)
+        {
+            return NotFound(ex.Message);
         }
     }
 
@@ -104,11 +111,14 @@ public class TaskManagerController : ControllerBase
     [EndpointSummary("Update")]
     [ProducesResponseType(typeof(ResponseTask), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseErrors), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     public IActionResult Update([FromRoute] Guid id, [FromBody] RequestUpdateTask request)
     {
         try
         {
-            return Ok();
+            var response = new UpdateTaskUseCase().Execute(tasksDB, id, request);
+
+            return Ok(response);
         }
         catch (ValidationException ex)
         {
@@ -116,6 +126,10 @@ public class TaskManagerController : ControllerBase
             {
                 Errors = ex.Errors
             });
+        }
+        catch (TaskNotFoundException ex)
+        {
+            return NotFound(ex.Message);
         }
     }
 
@@ -124,10 +138,13 @@ public class TaskManagerController : ControllerBase
     [EndpointSummary("Delete")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ResponseErrors), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
     public IActionResult Delete([FromRoute] Guid id)
     {
         try
         {
+            new DeleteTaskUseCase().Execute(tasksDB, id);
+
             return NoContent();
         }
         catch (ValidationException ex)
@@ -136,6 +153,9 @@ public class TaskManagerController : ControllerBase
             {
                 Errors = ex.Errors
             });
+        }
+        catch (TaskNotFoundException ex) {
+            return NotFound(ex.Message);
         }
     }
 }
